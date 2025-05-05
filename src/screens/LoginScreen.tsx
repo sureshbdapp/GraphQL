@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -9,90 +9,102 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
+  Modal,
+  Image,
 } from 'react-native';
 
-import { gql, useMutation } from '@apollo/client';
-const { width } = Dimensions.get('window');
+import {gql, useMutation} from '@apollo/client';
 import LottieView from 'lottie-react-native';
-import { Modal } from 'react-native';
-import { useRealm } from '@realm/react';
-import { addInDB, getIntoDB } from '../realm/realmHelper/realmHelper';
-import { LoginInfo } from '../realm/models/LoginInfo';
-const LoginScreen: React.FC = () => {
-  const [userName, setUserName] = useState('emilys');
-  const [password, setPassword] = useState('emilyspass');
-  // const [email, setEmail] = useState('emilyspass');
-  const [showAnimation, setShowAnimation] = useState(false);
-  const realm = useRealm(); 
-  const handleLogin = () => {
-    if (!userName || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
-      return;
-    }
-  
-    api({
-      variables: {
-        username: userName,
-        password: password,
-      },
-    })
-      .then((response) => {
-        console.error('Response:', response);
-        if (response?.data) {
-           addInDB(LoginInfo,"LoginInfo",response.data.login)
-          setShowAnimation(true);
-          setTimeout(() => {
-            setShowAnimation(false);
-            Alert.alert('Success', `Logged in! ${JSON.stringify(getIntoDB(LoginInfo,"LoginInfo"))}`);
-          }, 2500); 
-        } else {
-          Alert.alert('Error', 'Login failed');
-        }
-      })
-      .catch((error) => {
-        console.error('Login error:', error);
-        Alert.alert('Error', 'An error occurred during login');
-      });
-  };
+import {useRealm} from '@realm/react';
+import {addInDB, getIntoDB} from '../realm/realmHelper/realmHelper';
+import {LoginInfo} from '../realm/models/LoginInfo';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
 
-  const LOGIN_MUTATION = gql`
+const {width} = Dimensions.get('window');
+
+type RootStackParamList = {
+  LoginScreen: undefined;
+  Registration: undefined;
+  Dashboard: undefined;
+};
+
+const LOGIN_MUTATION = gql`
   mutation Login($username: String!, $password: String!) {
     login(username: $username, password: $password) {
-      gender,
-        email,
-        firstName,
-        image,
-        id,
-        lastName,
-        token,
-        username
+      gender
+      email
+      firstName
+      image
+      id
+      lastName
+      token
+      username
     }
   }
 `;
 
+const LoginScreen: React.FC = () => {
+  type NavigationProp = StackNavigationProp<RootStackParamList, 'LoginScreen'>;
+  const navigation = useNavigation<NavigationProp>();
+  const [userName, setUserName] = useState('emilys');
+  const [password, setPassword] = useState('emilyspass');
+  const [showAnimation, setShowAnimation] = useState(false);
 
+  const [loginMutation,{loading}] = useMutation(LOGIN_MUTATION, {
+    onCompleted: (data) => {
+      if (data?.login) {
+        addInDB(LoginInfo, 'LoginInfo', data.login);
+        setShowAnimation(true);
+        setTimeout(() => {
+          setShowAnimation(false);
+          navigation.navigate('Dashboard');
+        }, 2500);
+      } else {
+        Alert.alert('Error', 'Login failed: Invalid response');
+      }
+    },
+    onError: (error) => {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Login failed. Please check your credentials.');
+    },
+  });
 
-const [api] = useMutation(LOGIN_MUTATION)
+  const handleLogin = () => {
+    if (!userName || !password) {
+      Alert.alert('Error', 'Please enter both username and password');
+      return;
+    }
+
+    loginMutation({
+      variables: {
+        username: userName,
+        password: password,
+      },
+    });
+  };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <View
+      // behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}>
-
-{showAnimation && (
-  <Modal transparent visible animationType="fade">
-    <View style={styles.animationContainer}>
-      <LottieView
-        source={require('../assets/animations/paper-plane.json')}
-        autoPlay
-        loop={false}
-        onAnimationFinish={() => setShowAnimation(false)}
-        style={styles.lottieStyle}
-      />
-    </View>
-  </Modal>
-)}
-
+        {/* <Image source={}/> */}
+      
+      
+      {showAnimation && (
+        <Modal transparent visible animationType="fade">
+          <View style={styles.animationContainer}>
+            <LottieView
+              source={require('../assets/animations/paper-plane.json')}
+              autoPlay
+              loop={false}
+              onAnimationFinish={() => setShowAnimation(false)}
+              style={styles.lottieStyle}
+            />
+          </View>
+        </Modal>
+      )}
 
       <View style={styles.innerContainer}>
         <Text style={styles.title}>Login</Text>
@@ -116,11 +128,23 @@ const [api] = useMutation(LOGIN_MUTATION)
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Log In</Text>
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Log In</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, {backgroundColor: '#ccc'}]}
+          onPress={() =>{
+             navigation.navigate('Registration')
+             }}>
+          <Text style={[styles.buttonText, {color: 'black'}]}>Registration</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -166,9 +190,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
-    transform: [{ rotate: '180deg' }]
+    transform: [{rotate: '180deg'}],
   },
-  lottieStyle: { width: "100%", height: "100%" }
+  lottieStyle: {
+    width: Dimensions.get('screen').width,
+    height: Dimensions.get('screen').height,
+  },
 });
 
 export default LoginScreen;

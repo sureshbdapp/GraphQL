@@ -18,4 +18,7 @@ const getIntoDB = (dataModel:SchemaType,tableSchemaName:string)=>{
     return data;
 }
 
+
+
+
 export{addInDB,getIntoDB}

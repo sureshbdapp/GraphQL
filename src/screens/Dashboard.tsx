@@ -3,8 +3,8 @@ import React from 'react'
 
 const Dashboard = () => {
   return (
-    <View>
-      <Text style={{color:"white",fontSize:35}}>Dashboard</Text>
+    <View style={{flex:1,justifyContent:'center'}}>
+      <Text style={{color:"black",fontSize:35,textAlign:'center'}}>Dashboard</Text>
     </View>
   )
 }
